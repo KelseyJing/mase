@@ -2,7 +2,10 @@
 Jet Substructure Models used in the LogicNets paper
 """
 
+
 import torch.nn as nn
+
+
 
 
 class JSC_Toy(nn.Module):
@@ -19,10 +22,57 @@ class JSC_Toy(nn.Module):
             nn.Linear(8, 8),  # 5
             nn.BatchNorm1d(8),  # 6
             nn.ReLU(8),  # 7
-            # 3rd LogicNets Layer
+            #3rd LogicNets Layer
             nn.Linear(8, 5),  # 8
-            nn.BatchNorm1d(5),  # 9
-            nn.ReLU(5),
+             nn.BatchNorm1d(5),  # 9
+             nn.ReLU(5),
+        )
+    def forward(self, x):
+            return self.seq_blocks(x)
+
+class JSC_Toy_Self(nn.Module):
+    def __init__(self, info):
+        super(JSC_Toy_Self, self).__init__()
+        self.seq_blocks = nn.Sequential(
+            # 1st LogicNets Layer
+            nn.BatchNorm1d(16),  # input_quant       # 0
+            nn.ReLU(),  # 1
+            nn.Linear(16, 55),  # linear              # 2
+            nn.BatchNorm1d(55),  # output_quant       # 3
+            nn.ReLU(),  # 4
+            # 2nd LogicNets Layer
+            nn.Linear(55, 26),  # 5
+            nn.BatchNorm1d(26),  # 6
+            nn.ReLU(),  # 7
+            #3rd
+            nn.Linear(26, 15),  # 5
+            nn.BatchNorm1d(15),  # 6
+            nn.ReLU(),
+            #4th
+            nn.Linear(15, 8),  # 5
+            nn.BatchNorm1d(8),  # 6
+            nn.ReLU(),
+            #5th LogicNets Layer
+            nn.Linear(8, 5),  # 8
+             nn.BatchNorm1d(5),  # 9
+             nn.ReLU(),
+        )
+    def forward(self, x):
+        return self.seq_blocks(x)
+
+class JSC_Three_Linear_Layers(nn.Module):
+    def __init__(self, info):
+        super(JSC_Three_Linear_Layers, self).__init__()
+        self.seq_blocks = nn.Sequential(
+    
+            nn.BatchNorm1d(16),  # 0
+            nn.ReLU(16),  # 1
+            nn.Linear(16, 16),  # linear seq_2
+            nn.ReLU(16),  # 3
+            nn.Linear(16, 16),  # linear seq_4
+            nn.ReLU(16),  # 5
+            nn.Linear(16, 5),  # linear seq_6
+            nn.ReLU(5),  # 7
         )
 
     def forward(self, x):
@@ -41,8 +91,11 @@ class JSC_Tiny(nn.Module):
             nn.ReLU(5),  # 4
         )
 
+
     def forward(self, x):
         return self.seq_blocks(x)
+
+
 
 
 class JSC_S(nn.Module):
@@ -76,10 +129,13 @@ class JSC_S(nn.Module):
             layer_list = layer_list + layer
         self.module_list = nn.ModuleList(layer_list)
 
+
     def forward(self, x):
         for l in self.module_list:
             x = l(x)
         return x
+
+
 
 
 # Getters ------------------------------------------------------------------------------
@@ -88,9 +144,17 @@ def get_jsc_toy(info):
     return JSC_Toy(info)
 
 
+
+
 def get_jsc_tiny(info):
     return JSC_Tiny(info)
 
+
+def get_jsc_toy_self(info):
+    return JSC_Toy_Self(info)
+
+def get_jsc_three_linear_layers(info):
+    return JSC_Three_Linear_Layers(info)
 
 def get_jsc_s(info):
     return JSC_S(info)

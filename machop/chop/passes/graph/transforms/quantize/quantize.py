@@ -1,6 +1,6 @@
 from copy import copy, deepcopy
 import logging
-
+from torch import nn
 from chop.passes.graph.interface.save_and_load import load_mase_graph_interface_pass
 
 from ...utils import (
@@ -32,6 +32,13 @@ QUANTIZEABLE_OP = (
     "sub",
 )
 
+def instantiate_linear(in_features, out_features, bias):
+    if bias is not None:
+        bias = True
+    return nn.Linear(
+        in_features=in_features,
+        out_features=out_features,
+        bias=bias)
 
 def get_config(config: dict, name: str):
     if name in config:
@@ -224,4 +231,54 @@ def quantize_transform_pass(graph, pass_args=None):
             graph = graph_iterator_quantize_by_regex_name(graph, pass_args)
         case _:
             raise ValueError(f'Unsupported quantize "by": {by}')
+    return graph, {}
+
+def redefine_linear_transform_pass(graph, pass_args=None):
+
+    main_config = pass_args.pop('config')
+    default = {'config':{'name': None}}
+    if default is None:
+        raise ValueError(f"default value must be provided.")
+    i = 0
+    for node in graph.fx_graph.nodes:
+        i += 1
+        # if node name is not matched, it won't be tracked
+        # import pdb;pdb.set_trace()
+        config = main_config.get(node.name, default)['config']
+        name = config.get("name", None)
+        if name is not None:
+            ori_module = graph.modules[node.target]
+            in_features = 16
+            out_features = 16
+            # in_features = ori_module.in_features
+            # out_features = ori_module.out_features
+            bias = ori_module.bias
+           
+            if name == "output_only":
+                multiplier = config["channel_multiplier"] if not isinstance(config["channel_multiplier"], dict) else config["channel_multiplier"].get("output", 2)
+                out_features *= multiplier
+
+
+            elif name == "both":
+                input_multiplier = config["channel_multiplier"] if not isinstance(config["channel_multiplier"], dict) else config["channel_multiplier"].get("input", 2)
+                output_multiplier = config["channel_multiplier"] if not isinstance(config["channel_multiplier"], dict) else config["channel_multiplier"].get("output", 4)
+                in_features *= input_multiplier
+                out_features *= output_multiplier
+
+
+            elif name == "input_only":
+                multiplier = config["channel_multiplier"] if not isinstance(config["channel_multiplier"], dict) else config["channel_multiplier"].get("input", 4)
+                in_features *= multiplier
+                out_features = 5
+
+            # 使用更新后的特征维度创建新的Linear模块并替换原模块
+            new_module = instantiate_linear(in_features, out_features, bias)
+            parent_name, name = get_parent_name(node.target)
+            setattr(graph.modules[parent_name], name, new_module)
+            # print(f"Modified layer '{name}': in_features={in_features}, out_features={out_features}, bias={bias}")
+            if name == "relu":
+                relu_layer = nn.ReLU()
+                setattr(graph.modules[parent_name], name, relu_layer)
+
+
     return graph, {}

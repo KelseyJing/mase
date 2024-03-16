@@ -1,13 +1,16 @@
 import gymnasium as gym
 import copy
 
+import torch
+import numpy as np
+
 from gymnasium.spaces import Box, Dict, Discrete, MultiBinary, MultiDiscrete
 
 # from ray.rllib.algorithms.ppo import PPOConfig
 from stable_baselines3.common.callbacks import BaseCallback
-from chop.passes.graph.analysis.total_bits_estimator import (
-    total_bits_module_analysis_pass,
-)
+# from chop.passes.graph.analysis.total_bits_estimator import (
+#     total_bits_module_analysis_pass,
+# )
 
 
 class LLMMixedPrecisionEnv(gym.Env):

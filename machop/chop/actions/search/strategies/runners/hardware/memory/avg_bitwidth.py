@@ -27,7 +27,7 @@ class RunnerAvgBitwidthManualModel(HWRunnerBase):
         seq_len = input_ids.shape[1]
 
         if self.profiler_name == "profiler_pass":
-            calculate_avg_bits_module_analysis_pass(pass_model, metrics)
+            _, metrics = calculate_avg_bits_module_analysis_pass(pass_model, metrics)
             metrics["memory_density"] = self.compare_to / metrics["average_bitwidth"]
         else:
             p_metrics = get_model_profiler(self.profiler_name)(
@@ -56,7 +56,7 @@ class RunnerAvgBitwidth(HWRunnerBase):
         else:
             pass_model = model
         # compose hardware analysis passes here
-        calculate_avg_bits_module_analysis_pass(pass_model, metrics)
+        _, metrics = calculate_avg_bits_module_analysis_pass(pass_model, metrics)
         metrics["memory_density"] = (
             self.config["compare_to"] / metrics["average_bitwidth"]
         )

@@ -1,2 +1,3 @@
 from .graph import GraphSearchSpaceMixedPrecisionPTQ
 from .manual_hf_module import ManualHFModuleSearchSpaceMixedPrecisionPTQ
+from .new_define_graph import Kelseysearchselfdefine
