@@ -1,0 +1,80 @@
+
+model = "vgg7"
+dataset = "cifar10"
+task = "cls"
+ 
+#max_epochs = 5512
+batch_size = 512
+#learning_rate = 1e-3
+accelerator = "cpu"
+#project = "rl"
+seed = 42
+log_every_n_steps = 5
+
+load_name = "/mnt/c/users/KelseyJing/mase/test-accu-0.9332.ckpt"
+load_type = "pl"
+ 
+
+ 
+[passes.quantize]
+by = "type"
+[passes.quantize.default.config]
+name = "NA"
+[passes.quantize.linear.config]
+name = "integer"
+"data_in_width" = 8
+"data_in_frac_width" = 4
+"weight_width" = 8
+"weight_frac_width" = 4
+"bias_width" = 8
+"bias_frac_width" = 4
+ 
+[passes.quantize.conv2d.config]
+name = "integer"
+"data_in_width" = 8
+"data_in_frac_width" = 4
+"weight_width" = 8
+"weight_frac_width" = 4
+"bias_width" = 8
+"bias_frac_width" = 4
+ 
+[passes.quantize.batch_norm2d.config]
+name = "integer"
+"data_in_width" = 8
+"data_in_frac_width" = 4
+"weight_width" = 8
+"weight_frac_width" = 4
+"bias_width" = 8
+"bias_frac_width" = 4
+ 
+ 
+[search.search_space]
+name = "graph/quantize/mixed_precision_ptq"
+
+[search.search_space.setup]
+by = "name"
+
+[search.search_space.seed.default.config]
+name = ["integer"]
+data_in_width = [2, 4, 8, 10]
+data_in_frac_width = [2, 4, 6]
+weight_width = [2, 4, 8, 10]
+weight_frac_width = [2, 4, 6]
+bias_width = [2, 4, 8, 10]
+bias_frac_width = [2, 4, 6]
+
+[search.strategy]
+name = "rl"
+algorithm = 'ppo'
+env = 'mixed_precision'
+num_episodes = 1
+device = 'cpu'
+total_timesteps = 10000
+save_name = 'tmp'
+
+[search.strategy.sw_runner.basic_evaluation]
+data_loader = "val_dataloader"
+num_samples = 512
+
+[search.strategy.hw_runner.average_bitwidth]
+compare_to = 32 # compare to FP32
