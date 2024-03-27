@@ -1,4 +1,3 @@
-# # This is the search space for mixed-precision post-training-quantization quantization search on mase graph.
 # from copy import deepcopy
 # from torch import nn
 # from ..base import SearchSpaceBase
@@ -47,17 +46,20 @@
 
 #     def rebuild_model(self, sampled_config, is_eval_mode: bool = True):
 #         # set train/eval mode before creating mase graph
+
+#         self.model.to(self.accelerator)
 #         if is_eval_mode:
 #             self.model.eval()
 #         else:
 #             self.model.train()
 
-
 #         if self.mg is None:
 #             assert self.model_info.is_fx_traceable, "Model must be fx traceable"
 #             mg = MaseGraph(self.model)
 #             mg, _ = init_metadata_analysis_pass(mg, None)
-#             mg, _ = add_common_metadata_analysis_pass(mg, {"dummy_in": self.dummy_input})
+#             mg, _ = add_common_metadata_analysis_pass(
+#                 mg, {"dummy_in": self.dummy_input, "force_device_meta": False}
+#             )
 #             self.mg = mg
 #         if sampled_config is not None:
 #             mg, _ = quantize_transform_pass(self.mg, sampled_config)
@@ -158,6 +160,28 @@
 #         config["default"] = self.default_config
 #         config["by"] = self.config["setup"]["by"]
 #         return config
+
+#     def get_action_space_options(self):
+#         """
+#         Get the action space for the search space.
+#         """
+#         choices_flattened = self.choices_flattened
+#         # Extract unique layer identifiers
+#         layer_identifiers = set(k.split('/')[0] for k in choices_flattened.keys())
+#         num_layers = len(layer_identifiers)
+
+#         # Extract parameters for a single layer, ignoring 'name'
+#         parameters = self._extract_layer_parameters(next(iter(layer_identifiers)))
+        
+#         # Construct the action space with the correct number of options for each parameter, for all layers
+#         action_space_options = [len(parameters[key]) for key in parameters] * num_layers
+#         return action_space_options
+
+#     def _extract_layer_parameters(self, layer_identifier):
+#         """Extracts parameters for a given layer, excluding 'name'."""
+#         return {k.split('/')[-1]: v for k, v in self.choices_flattened.items() 
+#                 if k.startswith(layer_identifier)} # and not k.endswith("name")
+
 # This is the search space for mixed-precision post-training-quantization quantization search on mase graph.
 from copy import deepcopy
 from torch import nn
@@ -251,9 +275,6 @@ class GraphSearchSpaceMixedPrecisionPTQ(SearchSpaceBase):
 
         match self.config["setup"]["by"]:
             case "name":
-                # iterate through all the quantizeable nodes in the graph
-                # if the node_name is in the seed, use the node seed search space
-                # else use the default search space for the node
                 for n_name, n_info in node_info.items():
                     if n_info["mase_op"] in QUANTIZEABLE_OP:
                         if n_name in seed:
@@ -261,9 +282,7 @@ class GraphSearchSpaceMixedPrecisionPTQ(SearchSpaceBase):
                         else:
                             choices[n_name] = deepcopy(seed["default"])
             case "type":
-                # iterate through all the quantizeable nodes in the graph
-                # if the node mase_op is in the seed, use the node seed search space
-                # else use the default search space for the node
+                
                 for n_name, n_info in node_info.items():
                     n_op = n_info["mase_op"]
                     if n_op in QUANTIZEABLE_OP:
@@ -283,36 +302,6 @@ class GraphSearchSpaceMixedPrecisionPTQ(SearchSpaceBase):
         }
 
     def flattened_indexes_to_config(self, indexes: dict[str, int]):
-        """
-        Convert sampled flattened indexes to a nested config which will be passed to `rebuild_model`.
-
-        ---
-        For example:
-        ```python
-        >>> indexes = {
-            "conv1/config/name": 0,
-            "conv1/config/bias_frac_width": 1,
-            "conv1/config/bias_width": 3,
-            ...
-        }
-        >>> choices_flattened = {
-            "conv1/config/name": ["integer", ],
-            "conv1/config/bias_frac_width": [5, 6, 7, 8],
-            "conv1/config/bias_width": [3, 4, 5, 6, 7, 8],
-            ...
-        }
-        >>> flattened_indexes_to_config(indexes)
-        {
-            "conv1": {
-                "config": {
-                    "name": "integer",
-                    "bias_frac_width": 6,
-                    "bias_width": 6,
-                    ...
-                }
-            }
-        }
-        """
         flattened_config = {}
         for k, v in indexes.items():
             flattened_config[k] = self.choices_flattened[k][v]
@@ -321,24 +310,3 @@ class GraphSearchSpaceMixedPrecisionPTQ(SearchSpaceBase):
         config["default"] = self.default_config
         config["by"] = self.config["setup"]["by"]
         return config
-
-    def get_action_space_options(self):
-        """
-        Get the action space for the search space.
-        """
-        choices_flattened = self.choices_flattened
-        # Extract unique layer identifiers
-        layer_identifiers = set(k.split('/')[0] for k in choices_flattened.keys())
-        num_layers = len(layer_identifiers)
-
-        # Extract parameters for a single layer, ignoring 'name'
-        parameters = self._extract_layer_parameters(next(iter(layer_identifiers)))
-        
-        # Construct the action space with the correct number of options for each parameter, for all layers
-        action_space_options = [len(parameters[key]) for key in parameters] * num_layers
-        return action_space_options
-
-    def _extract_layer_parameters(self, layer_identifier):
-        """Extracts parameters for a given layer, excluding 'name'."""
-        return {k.split('/')[-1]: v for k, v in self.choices_flattened.items() 
-                if k.startswith(layer_identifier)} # and not k.endswith("name")

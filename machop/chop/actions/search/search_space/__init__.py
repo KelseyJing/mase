@@ -34,3 +34,6 @@ def get_search_space_cls(name: str) -> SearchSpaceBase:
     if name not in SEARCH_SPACE_MAP:
         raise ValueError(f"{name} must be defined in {list(SEARCH_SPACE_MAP.keys())}.")
     return SEARCH_SPACE_MAP[name]
+
+search_space = GraphSearchSpaceMixedPrecisionPTQ()  # 假设这是你的对象实例
+print(dir(search_space))
